@@ -67,7 +67,7 @@ class CTXCRISMDataset(Dataset):
         crism_path = self.crism_files[idx]
 
         with rasterio.open(ctx_path) as ctx_ds:
-            ctx_data = ctx_ds.read().astype(np.float32)  # Single-channel CTX input
+            ctx_data = ctx_ds.read().astype(np.float32)
             ctx_data = np.transpose(ctx_data, (1, 2, 0)) # Reorder to have (H, W, C) for albumentations
 
         with rasterio.open(crism_path) as crism_ds:
@@ -163,31 +163,3 @@ class MaskedMSELoss(torch.nn.Module):
 
         return masked_err.sum() / valid_pixels
     
-
-
-import torch.nn.functional as F
-
-def masked_mse_loss(output, target, mask):
-    """
-    Compute MSE loss only for valid pixels.
-    
-    Args:
-        output (torch.Tensor): Model predictions (batch, C, H, W)
-        target (torch.Tensor): Ground truth CRISM image (batch, C, H, W)
-        mask (torch.Tensor): Validity mask (batch, 1, H, W), where 1 = valid, 0 = invalid
-        
-    Returns:
-        torch.Tensor: Computed loss
-    """
-    # Apply the mask (only keep valid pixels)
-    valid_output = output * mask  # Keep valid outputs
-    valid_target = target * mask  # Keep valid targets
-
-    # Compute MSE only on valid pixels
-    loss = F.mse_loss(valid_output, valid_target, reduction='sum')  
-
-    # Normalize by the number of valid pixels to avoid bias
-    num_valid_pixels = torch.sum(mask)
-    loss = loss / num_valid_pixels.clamp(min=1)  # Avoid division by zero
-
-    return loss
