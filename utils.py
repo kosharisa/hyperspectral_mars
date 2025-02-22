@@ -131,7 +131,93 @@ def get_files_from_dir(dir, file_ext):
         file_ext (str): The file extension to filter by.
     """
     return sorted([os.path.join(dir, f) for f in os.listdir(dir) if f.endswith(file_ext)])
-     
 
 
+def files_in_dir_to_upper_case(path):
+    """
+    Changes the case of all files in the specified directory to upper case. keeping the file extension in lower.
+    """
+    for file in os.listdir(path):
+        os.rename(os.path.join(path, file), os.path.join(path, f"{file.split('.')[0].upper()}.{file.split('.')[-1]}"))
 
+
+def copy_crs_from_ctx(crism_path, ctx_path):
+    """
+    ! USE ONLY AFTER REPROJECTION, NOT A SUBSTITUTION FOR REPROJECTION !
+
+    Updates the coordinate system string in an ENVI header file to match the CTX projection.
+
+    Args:
+        crism_path (str): Path to the CRISM image to update the projection.
+        ctx_path (str): Path to the CTX image to extract correct projection.
+    """
+    header_path = find_crism_header(crism_path)
+    # Extract correct projection from CTX
+    with rasterio.open(ctx_path) as ctx_src:
+        correct_wkt = ctx_src.crs.to_wkt()  # Convert CRS to WKT format
+    
+    # Read the ENVI header file
+    with open(header_path, "r") as file:
+        header_content = file.read()
+
+    # Regex pattern to replace the coordinate system string
+    pattern = r'(coordinate system string\s*=\s*{)(.*?)(})'
+    
+    # Replace with correct WKT from CTX
+    corrected_header = re.sub(pattern, rf'\1{correct_wkt}\3', header_content, flags=re.DOTALL)
+
+    # Write back to the header file
+    with open(header_path, "w") as file:
+        file.write(corrected_header)
+
+    print(f"Updated coordinate system in: {header_path}")
+
+
+def get_base_name(file_name):
+    """
+    Returns the base name of a file without the extension.
+    """
+    return file_name.split('.')[0]
+
+
+def split_path_into_dir_and_file(path):
+    """
+    Splits a path into the directory and file name.
+    """
+    directory, file = os.path.split(path)
+    return directory, file
+
+
+def find_crism_header(crism_path):
+    """
+    Finds the ENVI header file for a CRISM image.
+    """
+    crism_dir, crism_file = split_path_into_dir_and_file(crism_path)
+    header_file = f"{os.path.splitext(crism_file)[0]}.hdr"
+    header_path = os.path.join(crism_dir, header_file)
+    return header_path
+
+
+def normalize_band(band):
+    band_min, band_max = np.nanmin(band), np.nanmax(band)
+    band_norm = (band - band_min) / (band_max - band_min) * 255
+    return band_norm.astype(np.uint8)
+
+
+def apply_3_sigma_stretch(band):
+    mean = np.nanmean(band)
+    std = np.nanstd(band)
+    min_val = mean - 3 * std
+    max_val = mean + 3 * std
+    band = np.clip(band, min_val, max_val)
+    return band
+
+
+def create_np_image(data, sigma_stretch=False):
+    bands = []
+    for band in data:
+        if sigma_stretch:
+            band = apply_3_sigma_stretch(band)
+        band = normalize_band(band)
+        bands.append(band)
+    return np.stack(bands, axis=0)
