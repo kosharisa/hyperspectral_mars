@@ -6,12 +6,15 @@ and training models.
 ## Pipeline overview (from data to training)
 
 1. CTX preprocessing (ISIS3) -> calibrated and map-projected CTX cubes
-2. CRISM preprocessing
-   - CRS reprojection to match CTX
-   - Coregistration (global/local or manual in QGIS)
-3. EVC creation (RGB proxy from CRISM bands to reduce training cost)
-4. Normalization (mean 0, std 1)
-5. Training
+2. EVC creation (RGB proxy from CRISM bands to reduce training cost)
+3. CRS reprojection and resampling
+4. Coregistration
+   - CTX–CRISM: AROSICS global + local
+   - CaSSIS–CRISM: manual in QGIS (CRISM -> CaSSIS, saved as .tif)
+5. CRISM to CaSSIS resampling (after manual coregistration)
+6. Crop to CRISM valid bounds
+7. Normalization (mean 0, std 1)
+8. Training
 
 ## 1. CTX preprocessing (ISIS3)
 
@@ -187,5 +190,4 @@ Adjust these paths before running:
 
 Optional visualization sections let you inspect value distributions and
 render a quick RGB preview.
-
 
