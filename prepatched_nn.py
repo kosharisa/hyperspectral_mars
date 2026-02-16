@@ -1,5 +1,10 @@
 import rasterio
-from utils import *
+from utils import (
+    create_mask,
+    create_np_image,
+    get_files_from_dir,
+    split_path_into_dir_and_file,
+)
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -54,8 +59,10 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, epochs, d
                 # writer.add_image("Output/Prediction", create_image(outputs[0]), epoch)
 
             if epoch % 10 == 0:
-                target_img = torch.tensor(create_np_image(crism_data[0]))
-                output_img = torch.tensor(create_np_image(outputs[0]))
+                detached_outputs = outputs.cpu().detach().numpy()
+                detached_crism_data = crism_data.cpu().detach().numpy()
+                target_img = torch.tensor(create_np_image(detached_crism_data[0]))
+                output_img = torch.tensor(create_np_image(detached_outputs[0]))
                 grid = vutils.make_grid([target_img, output_img], nrow=2)
                 writer.add_image("CRISM/Prediction/Val", grid, epoch)
 

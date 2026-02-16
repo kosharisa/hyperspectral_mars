@@ -134,7 +134,7 @@ crop to CRISM valid bounds.
 Steps in QGIS:
 
 1. Add the reference layer (CaSSIS).
-2. Open **Georeferencer**.
+2. Select **Layer** and open **Georeferencer** from dropdown menu.
 3. Import the target (CRISM) raster.
 4. Pick ~10 control points.
 5. Use **Thin Plate Spline** interpolation.
@@ -191,3 +191,54 @@ Adjust these paths before running:
 Optional visualization sections let you inspect value distributions and
 render a quick RGB preview.
 
+## 7. Training
+
+Primary entrypoint: `training.ipynb`. It covers data prep, training, and
+evaluation for both CTX->CRISM and CaSSIS->CRISM.
+
+Model helpers:
+
+- `neural_network.py` (CTX -> CRISM UNet, EfficientNet-B0 encoder)
+- `neural_network_phase_2.py` (CaSSIS -> CRISM UNet with masked loss)
+- `prepatched_nn.py` (training on pregenerated patches)
+
+### CTX - CRISM training
+
+Uses `CTXCRISMDataset` from `neural_network.py` with CTX (1 channel) input and
+CRISM (3 channels) target. Training uses MSE and logs images/histograms.
+
+Adjust:
+
+- Train/val/test directories for CTX/CRISM (cells under **Loading data**).
+- `batch_size`, `patch_size`, `num_epochs`, `learning_rate`, `device`.
+- Checkpoint path for saving/loading weights.
+
+Optional evaluation uses tiled inference with Gaussian-weighted blending
+(`evaluate_model_with_gaussian`).
+
+### CaSSIS - CRISM training
+
+Uses `CaSSISCRISMDataset` from `neural_network_phase_2.py` with 4-channel
+CaSSIS input and 3-channel CRISM target. Invalid pixels are masked; training
+uses masked loss.
+
+Adjust:
+
+- Train/val/test directories for CaSSIS/CRISM (cells under **CaSSIS CRISM training**).
+- `batch_size`, `patch_size`, `num_epochs`, `learning_rate`, `device`.
+- Optional loss weights (e.g., `third_channel_factor`).
+
+### Pregenerated patches
+
+If you pre-generate patches, use `prepatched_nn.py` and the corresponding
+section in `training.ipynb`.
+
+Adjust:
+
+- `output_dir` for patch extraction.
+- `stride` and `patch_size` in `extract_valid_patches`.
+- Split ratios in `split_into_train_test_val` / `split_into_tvt_by_pairs`.
+
+### Outputs
+
+Training saves logs to TensorBoard.
